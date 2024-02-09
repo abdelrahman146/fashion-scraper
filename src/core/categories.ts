@@ -295,6 +295,7 @@ export const formal = [
   "evening",
   "prom",
   "abaya",
+  "kurta",
   "jalabiya",
   "kaftan",
 ];
