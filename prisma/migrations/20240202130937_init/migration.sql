@@ -1,0 +1,25 @@
+-- CreateTable
+CREATE TABLE "Product" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "psId" TEXT,
+    "source" TEXT NOT NULL,
+    "url" TEXT NOT NULL,
+    "region" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "pageOrder" INTEGER,
+    "category" TEXT NOT NULL,
+    "subCategory" TEXT NOT NULL,
+    "brand" TEXT,
+    "gender" TEXT NOT NULL,
+    "color" TEXT,
+    "material" TEXT,
+    "discountPrice" DECIMAL,
+    "price" DECIMAL NOT NULL,
+    "currency" TEXT NOT NULL DEFAULT 'AED',
+    "hasPromotion" BOOLEAN,
+    "ratingScore" DECIMAL,
+    "ratingCount" INTEGER,
+    "otherAttributes" TEXT,
+    "description" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

@@ -1,0 +1,42 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id                  String   @id @default(cuid())
+  psId                String?
+  source              String?
+  url                 String?
+  region              String?
+  title               String?
+  pageOrder           Int?
+  category            String?
+  subCategory         String?
+  brand               String?
+  gender              String?
+  color               String?
+  material            String?
+  priceBeforeDiscount Decimal?
+  sellingPrice        Decimal?
+  currency            String?  @default("AED")
+  hasPromotion        Boolean?
+  ratingScore         Decimal?
+  ratingCount         Int?
+  otherAttributes     String?
+  description         String?
+  createdAt           DateTime @default(now())
+}
+
+model Scraped {
+  id        String   @id @default(cuid())
+  url       String
+  createdAt DateTime @default(now())
+}
