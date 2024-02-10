@@ -10,7 +10,8 @@
     "scrape:namshi": "ts-node src/GCC/namshi/main.ts",
     "scrape:sivvi": "ts-node src/GCC/sivvi/main.ts",
     "scrape:max": "ts-node src/GCC/max/main.ts",
-    "scrape:centerpoint": "ts-node src/GCC/centerpoint/main.ts"
+    "scrape:centerpoint": "ts-node src/GCC/centerpoint/main.ts",
+    "scrape:brandsforless": "ts-node src/GCC/brandsforless/main.ts"
   },
   "dependencies": {
     "@prisma/client": "5.9.1",
