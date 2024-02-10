@@ -10,6 +10,7 @@ import { findMaterial } from "../../core/findMaterial";
 import { log, logr } from "../../core/log";
 import { getRandomInteger } from "../../core/number.utils";
 import moment from "moment";
+import { findColor } from "../../core/findColor";
 
 puppeteer.use(stealthPlugin());
 const prisma = new PrismaClient();
@@ -22,6 +23,7 @@ type Data = {
     price: string | null;
     priceBeforeDiscount: string | null;
   };
+  rrp: string | null;
   url: string | null;
   hasPromotion: boolean | null;
 };
@@ -30,7 +32,7 @@ type SpiderOptions = {
   defaultGender: string;
   region?: REGION;
   url: string;
-  defaultColor: string;
+  defaultColor?: string;
   source?: string;
   defaultCurrency?: string;
   defaultCategory?: string;
@@ -92,7 +94,7 @@ export async function spider({
     return page.evaluate(() => {
       const p = document.querySelectorAll("ul.pagination > li");
       if (p && p.length > 0) {
-        return Number(p[p.length-2].textContent?.replace(/\D/gm, '').trim());
+        return Number(p[p.length - 2].textContent?.replace(/\D/gm, "").trim());
       } else {
         return 1;
       }
@@ -114,7 +116,7 @@ export async function spider({
        * Extractors START
        */
       function extractId(product: Element): string | null {
-        let url = product.querySelector('a')?.getAttribute("href");
+        let url = product.querySelector("a")?.getAttribute("href");
         if (url) {
           url = url.trim().replace(/\/$/, "");
           const parts = url.split("/");
@@ -151,6 +153,10 @@ export async function spider({
         }
         return false;
       }
+
+      function extractRRP(product: Element): string | null {
+        return product.querySelector(".rrp_value")?.textContent?.replace(/\D/gm, "") || null;
+      }
       /**
        * Extractors END
        */
@@ -163,12 +169,14 @@ export async function spider({
           const price = extractPrice(product);
           const url = extractUrl(product) || "";
           const hasPromotion = extractHasPromotion(product);
-          return { id, title, brand, price, url, hasPromotion };
+          const rrp = extractRRP(product);
+          return { id, title, brand, price, url, hasPromotion, rrp };
         } catch {
           return {
             id: null,
             title: null,
             brand: null,
+            rrp: null,
             price: { price: null, priceBeforeDiscount: null },
             url: null,
             hasPromotion: null,
@@ -209,8 +217,9 @@ export async function spider({
           priceBeforeDiscount: Number(item.price.priceBeforeDiscount),
           pageOrder: order,
           currency: defaultCurrency,
-          color: defaultColor,
+          color: findColor(item.title),
           material: findMaterial(item.title),
+          otherAttributes: JSON.stringify({ rrp: Number(item.rrp) }),
         };
         if (product) {
           await prisma.product.update({
@@ -248,11 +257,11 @@ export async function spider({
     moment.duration(32000 * lastPage).humanize(true)
   );
   for (let i = 1; i <= lastPage; i++) {
-    const url_paginated = i > 1 ? url + "&p=" + i : url;
+    const url_paginated = i > 1 ? url + "?page=" + i : url;
     const alreadyScraped = await checkIfScraped(url_paginated);
     if (alreadyScraped) continue;
     if (i > 1) {
-      const success = await navigateWithRetry(page, url + "&p=" + i);
+      const success = await navigateWithRetry(page, url + "?page=" + i);
       if (!success) continue;
     }
 
@@ -262,7 +271,7 @@ export async function spider({
     await registerAsScraped(url_paginated);
 
     // Showing Percentage of completion
-    const percentage = Math.floor((i / lastPage) * 100);
+    const percentage = Math.round((i / lastPage) * 100);
     if (percentage % 10 === 0 || percentage === 99) {
       log(`🕷️  [BRANDSFORLESS_SPIDER] 🟩 Completed ${percentage}% of total products`);
     }

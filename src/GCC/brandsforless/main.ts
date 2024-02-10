@@ -13,8 +13,7 @@ const pages = [
   "https://www.brandsforless.com/en-ae/kids/boys",
   "https://www.brandsforless.com/en-ae/kids/boys/footwear",
   "https://www.brandsforless.com/en-ae/kids/girls",
-  "https://www.brandsforless.com/en-ae/kids/girls/footwear"
-
+  "https://www.brandsforless.com/en-ae/kids/girls/footwear",
 ];
 
 const getGender = (url: string) => {
@@ -34,7 +33,7 @@ const getCategory = (url: string) => {
   for (let url of pages) {
     logr(`🕷️  Assigned [BRANDSFORLESS_SPIDER] for ${url}`);
     const start = moment();
-    const total = await spider({ url: url, defaultGender: getGender(url), defaultCategory: getCategory(url), defaultColor: color });
+    const total = await spider({ url: url, defaultGender: getGender(url), defaultCategory: getCategory(url) });
     if (total === -3 || total === 0) continue;
     const finish = moment();
     const time = finish.diff(start, "milliseconds");

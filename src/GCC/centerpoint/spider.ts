@@ -256,7 +256,7 @@ export async function spider({
     await registerAsScraped(url_paginated);
 
     // Showing Percentage of completion
-    const percentage = Math.floor((i / lastPage) * 100);
+    const percentage = Math.round((i / lastPage) * 100);
     if (percentage % 10 === 0 || percentage === 99) {
       log(`🕷️  [CENTERPOINT_SPIDER] 🟩 Completed ${percentage}% of total products`);
     }
