@@ -92,7 +92,7 @@ export async function spider({
     return page.evaluate(() => {
       const totalArr = document.querySelector("#category-loadmore-layout")?.textContent?.split(" products out of ");
       if (totalArr && totalArr.length > 0) {
-        return Math.floor(Number(totalArr[1]) / 48);
+        return Math.floor(Number(totalArr[1].replace(/\D/gm, "")) / 48);
       } else {
         return 1;
       }
@@ -240,11 +240,11 @@ export async function spider({
   const lastPage = await getLastPage();
   log(
     "📊 Total Pages: ",
-    lastPage,
+    lastPage + 1,
     "Estimated Total Products",
-    lastPage * 48,
+    (lastPage + 1) * 48,
     "estimated finish  ",
-    moment.duration(32000 * lastPage).humanize(true)
+    moment.duration(32000 * (lastPage + 1)).humanize(true)
   );
   for (let i = 0; i <= lastPage; i++) {
     const url_paginated = i > 0 ? url + "&p=" + i : url;

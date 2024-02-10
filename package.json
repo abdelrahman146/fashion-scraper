@@ -8,7 +8,9 @@
     "test:watch": "jest --watch",
     "scrape:trendyol": "ts-node src/GCC/trendyol/main.ts",
     "scrape:namshi": "ts-node src/GCC/namshi/main.ts",
-    "scrape:sivvi": "ts-node src/GCC/sivvi/main.ts"
+    "scrape:sivvi": "ts-node src/GCC/sivvi/main.ts",
+    "scrape:max": "ts-node src/GCC/max/main.ts",
+    "scrape:centerpoint": "ts-node src/GCC/centerpoint/main.ts"
   },
   "dependencies": {
     "@prisma/client": "5.9.1",
