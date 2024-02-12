@@ -4,11 +4,11 @@ import stealthPlugin from "puppeteer-extra-plugin-stealth";
 import { PrismaClient } from "@prisma/client";
 
 import { Browser, Page } from "puppeteer";
-import { categorize } from "../../core/categorize";
-import { REGION } from "../../core/types";
-import { findMaterial } from "../../core/findMaterial";
-import { log, logr } from "../../core/log";
-import { getRandomInteger } from "../../core/number.utils";
+import { categorize } from "../../../core/categorize";
+import { REGION } from "../../../core/types";
+import { findMaterial } from "../../../core/findMaterial";
+import { log, logr } from "../../../core/log";
+import { getRandomInteger } from "../../../core/number.utils";
 import moment from "moment";
 
 puppeteer.use(stealthPlugin());
@@ -34,7 +34,6 @@ type SpiderOptions = {
   source?: string;
   defaultCurrency?: string;
   defaultCategory?: string;
-  defaultMaterial?: string;
 };
 
 async function navigateWithRetry(page: Page, url: string, maxRetries = 3) {
@@ -45,12 +44,12 @@ async function navigateWithRetry(page: Page, url: string, maxRetries = 3) {
       // If navigation succeeds, return
       return true;
     } catch (error) {
-      log(`🕷️  [SIVVI_SPIDER] ❗ Navigation attempt ${retries + 1} failed with timeout error. Retrying...`);
+      log(`🕷️  [NAMSHI_SPIDER] ❗ Navigation attempt ${retries + 1} failed with timeout error. Retrying...`);
       retries++;
       await new Promise((r) => setTimeout(r, getRandomInteger(15000, 30000)));
     }
   }
-  logr(`🕷️  [SIVVI_SPIDER] ⛔ Navigation failed after ${maxRetries} attempts. for ${url}`);
+  logr(`🕷️  [NAMSHI_SPIDER] ⛔ Navigation failed after ${maxRetries} attempts. for ${url}`);
   return false;
 }
 
@@ -62,12 +61,12 @@ async function launchWithRetry(url: string, maxRetries = 3) {
       // If navigation succeeds, return
       return browser;
     } catch (error) {
-      log(`🕷️  [SIVVI_SPIDER] ❗ Launch attempt ${retries + 1} failed with protocol timeout error. Retrying...`);
+      log(`🕷️  [NAMSHI_SPIDER] ❗ Launch attempt ${retries + 1} failed with protocol timeout error. Retrying...`);
       retries++;
       await new Promise((r) => setTimeout(r, getRandomInteger(15000, 30000)));
     }
   }
-  logr(`🕷️  [SIVVI_SPIDER] ⛔ Launch failed after ${maxRetries} attempts. for ${url}`);
+  logr(`🕷️  [NAMSHI_SPIDER] ⛔ Launch failed after ${maxRetries} attempts. for ${url}`);
   return null;
 }
 
@@ -75,13 +74,12 @@ export async function spider({
   defaultCurrency = "AED",
   defaultGender,
   region = REGION.GCC,
-  source = "sivvi",
+  source = "namshi",
   defaultCategory,
-  defaultMaterial,
   defaultColor,
   url,
 }: SpiderOptions): Promise<number> {
-  const timeoutBuffer = [20_000, 40_000];
+  const timeoutBuffer = [15_000, 30_000];
   const browser: Browser | null = await launchWithRetry(url);
   if (!browser) return -3;
   const page: Page = await browser.newPage();
@@ -92,7 +90,7 @@ export async function spider({
 
   async function getLastPage(): Promise<number> {
     return page.evaluate(() => {
-      const p = document.querySelectorAll('button[class*="Pagination_paginationItem__"]');
+      const p = document.querySelectorAll('a[class*="PlpPagination_paginationItem__"]');
       if (p.length > 0) {
         return Number(p[p.length - 1].textContent);
       } else {
@@ -108,6 +106,26 @@ export async function spider({
       },
     });
     return !!scraped_url;
+  }
+
+  async function fetchAllProducts(): Promise<boolean> {
+    return page.evaluate(() => {
+      return new Promise<boolean>((resolve) => {
+        let scrollPercentage = 0.2;
+        const intervalId = setInterval(() => {
+          window.scrollTo({
+            top: document.body.scrollHeight * scrollPercentage,
+            behavior: "smooth",
+          });
+          if (scrollPercentage < 0.9) {
+            scrollPercentage = scrollPercentage + 0.1;
+          } else {
+            clearInterval(intervalId);
+            resolve(true);
+          }
+        }, 1500);
+      });
+    });
   }
 
   async function scrapeData(): Promise<Data[]> {
@@ -140,10 +158,10 @@ export async function spider({
       }
 
       function extractPrice(product: Element): { priceBeforeDiscount: string | null; price: string | null } {
-        let sellingPrice = product.querySelector('span[class*="ProductPrice_sellingPrice__"] > strong')?.textContent?.trim();
+        let sellingPrice = product.querySelector('span[class*="ProductPrice_value__"]')?.textContent?.trim().replace(/\D/g, "");
         let priceBeforeDiscount = product.querySelector('div[class*="ProductPrice_preReductionPrice__"]')?.textContent?.trim().replace(/\D/g, "");
 
-        return { price: sellingPrice || null, priceBeforeDiscount: (Number(priceBeforeDiscount) / 100).toFixed(2) || null };
+        return { price: sellingPrice || null, priceBeforeDiscount: priceBeforeDiscount || null };
       }
 
       function extractHasPromotion(product: Element): boolean | null {
@@ -181,7 +199,7 @@ export async function spider({
   }
 
   async function unload(currentPage: number, data: Data[]) {
-    let i = 20 * (currentPage - 1);
+    let i = 60 * (currentPage - 1);
     for (const item of data) {
       const order = ++i;
       try {
@@ -212,7 +230,7 @@ export async function spider({
           pageOrder: order,
           currency: defaultCurrency,
           color: defaultColor,
-          material: defaultMaterial || findMaterial(item.title),
+          material: findMaterial(item.title),
         };
         if (product) {
           await prisma.product.update({
@@ -245,9 +263,9 @@ export async function spider({
     "📊 Total Pages: ",
     lastPage,
     "Estimated Total Products",
-    lastPage * 20,
+    lastPage * 60,
     "estimated finish  ",
-    moment.duration(32000 * lastPage).humanize(true)
+    moment.duration(42000 * lastPage).humanize(true)
   );
   for (let i = 1; i <= lastPage; i++) {
     const url_paginated = url + "&page=" + i;
@@ -258,6 +276,7 @@ export async function spider({
       if (!success) continue;
     }
 
+    await fetchAllProducts();
     const data = await scrapeData();
     await unload(i, data);
     total += data.length;
@@ -266,14 +285,14 @@ export async function spider({
     // Showing Percentage of completion
     const percentage = Math.round((i / lastPage) * 100);
     if (percentage % 10 === 0 || percentage === 99) {
-      log(`🕷️  [SIVVI_SPIDER] 🟩 Completed ${percentage}% of total products`);
+      log(`🕷️  [NAMSHI_SPIDER] 🟩 Completed ${percentage}% of total products`);
     }
 
     // Wait for new content to load, adjust the wait time according to your needs
     const timeout = getRandomInteger(timeoutBuffer[0], timeoutBuffer[1]);
-    log(`🕷️  [SIVVI_SPIDER] ⏳ Pausing for ${moment.duration(timeout).humanize()} ...`);
+    log(`🕷️  [NAMSHI_SPIDER] ⏳ Pausing for ${moment.duration(timeout).humanize()} ...`);
     await new Promise((r) => setTimeout(r, timeout));
-    log(`🕷️  [SIVVI_SPIDER] ⏩ Resuming ...`);
+    log(`🕷️  [NAMSHI_SPIDER] ⏩ Resuming ...`);
   }
 
   // Close the browser

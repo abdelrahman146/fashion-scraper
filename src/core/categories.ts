@@ -8,6 +8,7 @@ export const bottom = [
   "legging", // singular form of leggings
   "leggings", // plural form of legging
   "skirt", // singular and plural form are the same
+  "skirts",
   "short", // singular form of shorts
   "shorts", // plural form of short
   "bermuda", // singular and plural form are the same
@@ -30,6 +31,10 @@ export const bottom = [
   "tights",
   "baggy",
   "lycra",
+  "sweatshorts",
+  "sweatshort",
+  "boardshorts",
+  "boardshort",
 ];
 
 export const footwear = [
@@ -99,6 +104,7 @@ export const bag = [
   "briefcase",
   "briefcases",
   "sling",
+  "bag",
 ];
 
 export const hat = [
@@ -272,6 +278,7 @@ export const underwear = [
   "bikinis",
   "nightgown",
   "nightgowns",
+  "nightdress",
   "sock",
   "socks",
   "panty",
@@ -280,6 +287,10 @@ export const underwear = [
   "lycra",
   "strap",
   "undershirt",
+  "bra",
+  "bras",
+  "bralette",
+  "sleeveless",
 ];
 
 export const formal = [
@@ -295,15 +306,20 @@ export const formal = [
   "evening",
   "prom",
   "abaya",
+  "kandora",
   "kurta",
+  "kurti",
   "jalabiya",
   "kaftan",
+  "churidar",
 ];
 
 export const top = [
   "t-shirt",
   "tshirt",
+  "tshirt",
   "blouse",
+  "sleeveless",
   "shirt",
   "tank",
   "polo",
@@ -361,7 +377,6 @@ export const top = [
 
 export const set = [
   "pajama",
-  "pajamas",
   "twopiece",
   "tracksuit",
   "jumpsuit",
@@ -373,9 +388,13 @@ export const set = [
   "capri",
   "bodysuit",
   "bodysuits",
+  "playsuit",
   "dungaree",
   "romper",
   "prayerdress",
+  "onesies",
+  "swimsuit",
   "set",
   "combination",
+  "costume",
 ];

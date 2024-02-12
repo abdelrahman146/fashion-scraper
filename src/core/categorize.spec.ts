@@ -249,6 +249,12 @@ describe("categorize function", () => {
     expect(result.subCategory).toBe("shirt");
   });
 
+  test("should categorize 'Women's Bag Jpm2181 Black' as 'top/tshirt'", () => {
+    const result = categorize("Women's Bag Jpm2181 Black");
+    expect(result.category).toBe("bag");
+    expect(result.subCategory).toBe("bag");
+  });
+
   test("should handle special characters and return 'uncategorized/uncategorized'", () => {
     const result = categorize("!@#$%^&*()_+");
     expect(result.category).toBe("uncategorized");

@@ -1,5 +1,5 @@
-import { log, logr } from "../../core/log";
-import { getRandomInteger } from "../../core/number.utils";
+import { log, logr } from "../../../core/log";
+import { getRandomInteger } from "../../../core/number.utils";
 import { spider } from "./spider";
 import moment from "moment";
 
@@ -39,7 +39,7 @@ const getCategory = (url: string) => {
     const time = finish.diff(start, "milliseconds");
     logr(`🕷️  [BRANDSFORLESS_SPIDER] ✅ Succesffully scraped ` + total + " " + moment.duration(time).humanize(true));
     const timeout = getRandomInteger(30000, 180000);
-    log(`🕷️  [BRANDSFORLESS_SPIDER] ⏳ Taking a break for ${moment.duration(timeout).humanize()} ...`);
+    log(`🕷️  [BRANDSFORLESS_SPIDER] ⏳ Taking a break for ${moment.duration(timeout).humanize()} ...\n\n`);
     await new Promise((r) => setTimeout(r, timeout));
   }
 })();

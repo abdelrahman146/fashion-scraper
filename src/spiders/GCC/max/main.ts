@@ -1,5 +1,5 @@
-import { log, logr } from "../../core/log";
-import { getRandomInteger } from "../../core/number.utils";
+import { log, logr } from "../../../core/log";
+import { getRandomInteger } from "../../../core/number.utils";
 import { spider } from "./spider";
 import moment from "moment";
 
@@ -50,7 +50,7 @@ const getCategory = (url: string) => {
   for (let url of pages) {
     for (const color of colors) {
       const colored_url = url + "?q=:color.en:" + color;
-      logr(`🕷️  Assigned [MAX_SPIDER] for ${colored_url}`);
+      logr(`\n\n🕷️  Assigned [MAX_SPIDER] for ${colored_url}`);
       const start = moment();
       const total = await spider({ url: colored_url, defaultGender: getGender(url), defaultCategory: getCategory(url), defaultColor: color });
       if (total === -3 || total === 0) continue;

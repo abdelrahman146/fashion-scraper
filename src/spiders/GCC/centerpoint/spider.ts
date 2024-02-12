@@ -4,11 +4,11 @@ import stealthPlugin from "puppeteer-extra-plugin-stealth";
 import { PrismaClient } from "@prisma/client";
 
 import { Browser, Page } from "puppeteer";
-import { categorize } from "../../core/categorize";
-import { REGION } from "../../core/types";
-import { findMaterial } from "../../core/findMaterial";
-import { log, logr } from "../../core/log";
-import { getRandomInteger } from "../../core/number.utils";
+import { categorize } from "../../../core/categorize";
+import { REGION } from "../../../core/types";
+import { findMaterial } from "../../../core/findMaterial";
+import { log, logr } from "../../../core/log";
+import { getRandomInteger } from "../../../core/number.utils";
 import moment from "moment";
 
 puppeteer.use(stealthPlugin());
@@ -44,12 +44,12 @@ async function navigateWithRetry(page: Page, url: string, maxRetries = 3) {
       // If navigation succeeds, return
       return true;
     } catch (error) {
-      log(`🕷️  [MAX_SPIDER] ❗ Navigation attempt ${retries + 1} failed with timeout error. Retrying...`);
+      log(`🕷️  [CENTERPOINT_SPIDER] ❗ Navigation attempt ${retries + 1} failed with timeout error. Retrying...`);
       retries++;
       await new Promise((r) => setTimeout(r, getRandomInteger(15000, 30000)));
     }
   }
-  logr(`🕷️  [MAX_SPIDER] ⛔ Navigation failed after ${maxRetries} attempts. for ${url}`);
+  logr(`🕷️  [CENTERPOINT_SPIDER] ⛔ Navigation failed after ${maxRetries} attempts. for ${url}`);
   return false;
 }
 
@@ -61,12 +61,12 @@ async function launchWithRetry(url: string, maxRetries = 3) {
       // If navigation succeeds, return
       return browser;
     } catch (error) {
-      log(`🕷️  [MAX_SPIDER] ❗ Launch attempt ${retries + 1} failed with protocol timeout error. Retrying...`);
+      log(`🕷️  [CENTERPOINT_SPIDER] ❗ Launch attempt ${retries + 1} failed with protocol timeout error. Retrying...`);
       retries++;
       await new Promise((r) => setTimeout(r, getRandomInteger(15000, 30000)));
     }
   }
-  logr(`🕷️  [MAX_SPIDER] ⛔ Launch failed after ${maxRetries} attempts. for ${url}`);
+  logr(`🕷️  [CENTERPOINT_SPIDER] ⛔ Launch failed after ${maxRetries} attempts. for ${url}`);
   return null;
 }
 
@@ -74,7 +74,7 @@ export async function spider({
   defaultCurrency = "AED",
   defaultGender,
   region = REGION.GCC,
-  source = "max",
+  source = "centerpoint",
   defaultCategory,
   defaultColor,
   url,
@@ -86,13 +86,13 @@ export async function spider({
 
   let total = 0;
   let success = await navigateWithRetry(page, url);
-  if (!success) return -3;
+  if (!success) return total;
 
   async function getLastPage(): Promise<number> {
     return page.evaluate(() => {
-      const totalArr = document.querySelector("#category-loadmore-layout")?.textContent?.split(" products out of ");
-      if (totalArr && totalArr.length > 0) {
-        return Math.floor(Number(totalArr[1].replace(/\D/gm, "")) / 48);
+      const p = document.querySelector(".lms-pagination > ul")?.children as HTMLDivElement[] | undefined;
+      if (p && p.length > 0) {
+        return Number(p[p.length - 2].innerText);
       } else {
         return 1;
       }
@@ -114,7 +114,7 @@ export async function spider({
        * Extractors START
        */
       function extractId(product: Element): string | null {
-        let id = product.id;
+        let id = product.getAttribute("data-id");
         return id;
       }
 
@@ -124,28 +124,23 @@ export async function spider({
       }
 
       function extractTitle(product: Element): string | null {
-        return product.querySelector("a")?.getAttribute("aria-label")?.trim() || null;
+        return product.querySelector("a.title")?.textContent?.trim() || null;
       }
 
       function extractBrand(product: Element): string | null {
-        return "Max";
+        return product.querySelector("span.title")?.textContent?.trim() || null;
       }
 
       function extractPrice(product: Element): { priceBeforeDiscount: string | null; price: string | null } {
-        const price = product.children
-          ? Array.from(product.children)[1]
-              .textContent?.split("AED ")
-              .filter((val: any) => val)
-          : null;
-        if (price) {
-          return { price: price[0] || null, priceBeforeDiscount: price[1] || null };
-        }
-        return { price: null, priceBeforeDiscount: null };
+        let sellingPrice = product.querySelector(".is-price")?.textContent?.trim().replace(/\D/g, "");
+        let priceBeforeDiscount = product.querySelector(".was-price")?.textContent?.trim().replace(/\D/g, "");
+
+        return { price: sellingPrice || null, priceBeforeDiscount: priceBeforeDiscount || null };
       }
 
       function extractHasPromotion(product: Element): boolean | null {
-        let sale = product.querySelector(".red-sale");
-        if (sale) {
+        let priceBeforeDiscount = product.querySelector(".was-price")?.textContent?.trim().replace(/\D/g, "");
+        if (priceBeforeDiscount) {
           return true;
         }
         return false;
@@ -153,7 +148,7 @@ export async function spider({
       /**
        * Extractors END
        */
-      const products = Array.from(document.querySelectorAll(".product"));
+      const products = Array.from(document.querySelectorAll(".product-item"));
       return products.map((product: Element) => {
         try {
           const id = extractId(product);
@@ -240,36 +235,37 @@ export async function spider({
   const lastPage = await getLastPage();
   log(
     "📊 Total Pages: ",
-    lastPage + 1,
+    lastPage,
     "Estimated Total Products",
-    (lastPage + 1) * 48,
+    lastPage * 42,
     "estimated finish  ",
-    moment.duration(32000 * (lastPage + 1)).humanize(true)
+    moment.duration(32000 * lastPage).humanize(true)
   );
-  for (let i = 0; i <= lastPage; i++) {
-    const url_paginated = i > 0 ? url + "&p=" + i : url;
+  for (let i = 1; i <= lastPage; i++) {
+    const url_paginated = i > 1 ? url + "&p=" + i : url;
     const alreadyScraped = await checkIfScraped(url_paginated);
     if (alreadyScraped) continue;
     if (i > 1) {
-      const success = await navigateWithRetry(page, url_paginated);
+      const success = await navigateWithRetry(page, url + "&p=" + i);
       if (!success) continue;
     }
+
     const data = await scrapeData();
-    await unload(i + 1, data);
+    await unload(i, data);
     total += data.length;
     await registerAsScraped(url_paginated);
 
     // Showing Percentage of completion
-    const percentage = Math.round(((i + 1) / lastPage) * 100);
+    const percentage = Math.round((i / lastPage) * 100);
     if (percentage % 10 === 0 || percentage === 99) {
-      log(`🕷️  [MAX_SPIDER] 🟩 Completed ${percentage}% of total products`);
+      log(`🕷️  [CENTERPOINT_SPIDER] 🟩 Completed ${percentage}% of total products`);
     }
 
     // Wait for new content to load, adjust the wait time according to your needs
     const timeout = getRandomInteger(timeoutBuffer[0], timeoutBuffer[1]);
-    log(`🕷️  [MAX_SPIDER] ⏳ Pausing for ${moment.duration(timeout).humanize()} ...`);
+    log(`🕷️  [CENTERPOINT_SPIDER] ⏳ Pausing for ${moment.duration(timeout).humanize()} ...`);
     await new Promise((r) => setTimeout(r, timeout));
-    log(`🕷️  [MAX_SPIDER] ⏩ Resuming ...`);
+    log(`🕷️  [CENTERPOINT_SPIDER] ⏩ Resuming ...`);
   }
 
   // Close the browser

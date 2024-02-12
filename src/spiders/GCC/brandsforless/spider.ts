@@ -4,12 +4,13 @@ import stealthPlugin from "puppeteer-extra-plugin-stealth";
 import { PrismaClient } from "@prisma/client";
 
 import { Browser, Page } from "puppeteer";
-import { categorize } from "../../core/categorize";
-import { REGION } from "../../core/types";
-import { findMaterial } from "../../core/findMaterial";
-import { log, logr } from "../../core/log";
-import { getRandomInteger } from "../../core/number.utils";
+import { categorize } from "../../../core/categorize";
+import { REGION } from "../../../core/types";
+import { findMaterial } from "../../../core/findMaterial";
+import { log, logr } from "../../../core/log";
+import { getRandomInteger } from "../../../core/number.utils";
 import moment from "moment";
+import { findColor } from "../../../core/findColor";
 
 puppeteer.use(stealthPlugin());
 const prisma = new PrismaClient();
@@ -22,6 +23,7 @@ type Data = {
     price: string | null;
     priceBeforeDiscount: string | null;
   };
+  rrp: string | null;
   url: string | null;
   hasPromotion: boolean | null;
 };
@@ -30,7 +32,7 @@ type SpiderOptions = {
   defaultGender: string;
   region?: REGION;
   url: string;
-  defaultColor: string;
+  defaultColor?: string;
   source?: string;
   defaultCurrency?: string;
   defaultCategory?: string;
@@ -40,16 +42,17 @@ async function navigateWithRetry(page: Page, url: string, maxRetries = 3) {
   let retries = 0;
   while (retries < maxRetries) {
     try {
-      await page.goto(url, { waitUntil: "networkidle0" });
+      await page.goto(url, { waitUntil: "domcontentloaded" });
+      await page.waitForSelector("ul.pagination > li");
       // If navigation succeeds, return
       return true;
     } catch (error) {
-      log(`🕷️  [NAMSHI_SPIDER] ❗ Navigation attempt ${retries + 1} failed with timeout error. Retrying...`);
+      log(`🕷️  [BRANDSFORLESS_SPIDER] ❗ Navigation attempt ${retries + 1} failed with timeout error. Retrying...`);
       retries++;
       await new Promise((r) => setTimeout(r, getRandomInteger(15000, 30000)));
     }
   }
-  logr(`🕷️  [NAMSHI_SPIDER] ⛔ Navigation failed after ${maxRetries} attempts. for ${url}`);
+  logr(`🕷️  [BRANDSFORLESS_SPIDER] ⛔ Navigation failed after ${maxRetries} attempts. for ${url}`);
   return false;
 }
 
@@ -61,12 +64,12 @@ async function launchWithRetry(url: string, maxRetries = 3) {
       // If navigation succeeds, return
       return browser;
     } catch (error) {
-      log(`🕷️  [NAMSHI_SPIDER] ❗ Launch attempt ${retries + 1} failed with protocol timeout error. Retrying...`);
+      log(`🕷️  [BRANDSFORLESS_SPIDER] ❗ Launch attempt ${retries + 1} failed with protocol timeout error. Retrying...`);
       retries++;
       await new Promise((r) => setTimeout(r, getRandomInteger(15000, 30000)));
     }
   }
-  logr(`🕷️  [NAMSHI_SPIDER] ⛔ Launch failed after ${maxRetries} attempts. for ${url}`);
+  logr(`🕷️  [BRANDSFORLESS_SPIDER] ⛔ Launch failed after ${maxRetries} attempts. for ${url}`);
   return null;
 }
 
@@ -74,7 +77,7 @@ export async function spider({
   defaultCurrency = "AED",
   defaultGender,
   region = REGION.GCC,
-  source = "namshi",
+  source = "brandsforless",
   defaultCategory,
   defaultColor,
   url,
@@ -85,14 +88,14 @@ export async function spider({
   const page: Page = await browser.newPage();
 
   let total = 0;
-  let success = await navigateWithRetry(page, url + "&page=" + 1);
+  let success = await navigateWithRetry(page, url);
   if (!success) return total;
 
   async function getLastPage(): Promise<number> {
     return page.evaluate(() => {
-      const p = document.querySelectorAll('a[class*="PlpPagination_paginationItem__"]');
-      if (p.length > 0) {
-        return Number(p[p.length - 1].textContent);
+      const p = document.querySelectorAll("ul.pagination > li");
+      if (p && p.length > 0) {
+        return Number(p[p.length - 2].textContent?.replace(/\D/gm, "").trim());
       } else {
         return 1;
       }
@@ -108,73 +111,57 @@ export async function spider({
     return !!scraped_url;
   }
 
-  async function fetchAllProducts(): Promise<boolean> {
-    return page.evaluate(() => {
-      return new Promise<boolean>((resolve) => {
-        let scrollPercentage = 0.2;
-        const intervalId = setInterval(() => {
-          window.scrollTo({
-            top: document.body.scrollHeight * scrollPercentage,
-            behavior: "smooth",
-          });
-          if (scrollPercentage < 0.9) {
-            scrollPercentage = scrollPercentage + 0.1;
-          } else {
-            clearInterval(intervalId);
-            resolve(true);
-          }
-        }, 1500);
-      });
-    });
-  }
-
   async function scrapeData(): Promise<Data[]> {
     return page.evaluate(() => {
       /**
        * Extractors START
        */
       function extractId(product: Element): string | null {
-        let url = product.querySelector('a[class*="ProductBox_productBox__"]')?.getAttribute("href");
+        let url = product.querySelector("a")?.getAttribute("href");
         if (url) {
           url = url.trim().replace(/\/$/, "");
           const parts = url.split("/");
-          // return parts[parts.length - 3] + "/" + parts[parts.length - 2];
-          return parts[parts.length - 2];
+          return parts[parts.length - 3] + "/" + parts[parts.length - 2];
+          // return parts[parts.length - 2];
         }
         return null;
       }
 
       function extractUrl(product: Element): string | null {
-        const anchor = product.querySelector('a[class*="ProductBox_productBox__"]');
+        const anchor = product.querySelector("a");
         return anchor ? anchor.getAttribute("href") : null;
       }
 
       function extractTitle(product: Element): string | null {
-        return product.querySelector('div[class*="ProductBox_productTitle__"]')?.textContent?.trim() || null;
+        return product.querySelector(".product_title")?.textContent?.trim() || null;
       }
 
       function extractBrand(product: Element): string | null {
-        return product.querySelector('div[class*="ProductBox_brand__"]')?.textContent?.trim() || null;
+        return product.querySelector(".pdp_brand")?.textContent?.trim() || null;
       }
 
       function extractPrice(product: Element): { priceBeforeDiscount: string | null; price: string | null } {
-        let sellingPrice = product.querySelector('span[class*="ProductPrice_value__"]')?.textContent?.trim().replace(/\D/g, "");
-        let priceBeforeDiscount = product.querySelector('div[class*="ProductPrice_preReductionPrice__"]')?.textContent?.trim().replace(/\D/g, "");
+        let sellingPrice = product.querySelector(".price")?.textContent?.trim().replace(/\D/g, "");
+        let priceBeforeDiscount = product.querySelector(".old_price")?.textContent?.trim().replace(/\D/g, "");
 
         return { price: sellingPrice || null, priceBeforeDiscount: priceBeforeDiscount || null };
       }
 
       function extractHasPromotion(product: Element): boolean | null {
-        let priceBeforeDiscount = product.querySelector('div[class*="ProductPrice_preReductionPrice__"]')?.textContent?.trim().replace(/\D/g, "");
+        let priceBeforeDiscount = product.querySelector(".was-price")?.textContent?.trim().replace(/\D/g, "");
         if (priceBeforeDiscount) {
           return true;
         }
         return false;
       }
+
+      function extractRRP(product: Element): string | null {
+        return product.querySelector(".rrp_value")?.textContent?.replace(/\D/gm, "") || null;
+      }
       /**
        * Extractors END
        */
-      const products = Array.from(document.querySelectorAll('div[class*="ProductBox_container__"]'));
+      const products = Array.from(document.querySelectorAll("ul.product_listing_wrap > li"));
       return products.map((product: Element) => {
         try {
           const id = extractId(product);
@@ -183,12 +170,14 @@ export async function spider({
           const price = extractPrice(product);
           const url = extractUrl(product) || "";
           const hasPromotion = extractHasPromotion(product);
-          return { id, title, brand, price, url, hasPromotion };
+          const rrp = extractRRP(product);
+          return { id, title, brand, price, url, hasPromotion, rrp };
         } catch {
           return {
             id: null,
             title: null,
             brand: null,
+            rrp: null,
             price: { price: null, priceBeforeDiscount: null },
             url: null,
             hasPromotion: null,
@@ -199,7 +188,7 @@ export async function spider({
   }
 
   async function unload(currentPage: number, data: Data[]) {
-    let i = 60 * (currentPage - 1);
+    let i = 42 * (currentPage - 1);
     for (const item of data) {
       const order = ++i;
       try {
@@ -229,8 +218,9 @@ export async function spider({
           priceBeforeDiscount: Number(item.price.priceBeforeDiscount),
           pageOrder: order,
           currency: defaultCurrency,
-          color: defaultColor,
+          color: findColor(item.title),
           material: findMaterial(item.title),
+          otherAttributes: JSON.stringify({ rrp: Number(item.rrp) }),
         };
         if (product) {
           await prisma.product.update({
@@ -263,36 +253,36 @@ export async function spider({
     "📊 Total Pages: ",
     lastPage,
     "Estimated Total Products",
-    lastPage * 60,
+    lastPage * 42,
     "estimated finish  ",
-    moment.duration(42000 * lastPage).humanize(true)
+    moment.duration(32000 * lastPage).humanize(true)
   );
   for (let i = 1; i <= lastPage; i++) {
-    const url_paginated = url + "&page=" + i;
+    const url_paginated = i > 1 ? url + "?page=" + i : url;
     const alreadyScraped = await checkIfScraped(url_paginated);
     if (alreadyScraped) continue;
     if (i > 1) {
-      const success = await navigateWithRetry(page, url + "&page=" + i);
+      const success = await navigateWithRetry(page, url + "?page=" + i);
       if (!success) continue;
     }
 
-    await fetchAllProducts();
     const data = await scrapeData();
     await unload(i, data);
     total += data.length;
     await registerAsScraped(url_paginated);
 
     // Showing Percentage of completion
-    const percentage = Math.round((i / lastPage) * 100);
-    if (percentage % 10 === 0 || percentage === 99) {
-      log(`🕷️  [NAMSHI_SPIDER] 🟩 Completed ${percentage}% of total products`);
-    }
+    // const percentage = Math.round((i / lastPage) * 100);
+    // if (percentage % 10 === 0 || percentage === 99) {
+    //   log(`🕷️  [BRANDSFORLESS_SPIDER] 🟩 Completed ${percentage}% of total products\n`);
+    // }
 
     // Wait for new content to load, adjust the wait time according to your needs
     const timeout = getRandomInteger(timeoutBuffer[0], timeoutBuffer[1]);
-    log(`🕷️  [NAMSHI_SPIDER] ⏳ Pausing for ${moment.duration(timeout).humanize()} ...`);
+    log(`🕷️  [BRANDSFORLESS_SPIDER] 🕸️  Finished successfully (${i}/${lastPage})`);
+    log(`🕷️  [BRANDSFORLESS_SPIDER] ⏳ Pausing for ${moment.duration(timeout).humanize()} ...`);
     await new Promise((r) => setTimeout(r, timeout));
-    log(`🕷️  [NAMSHI_SPIDER] ⏩ Resuming ...`);
+    log(`🕷️  [BRANDSFORLESS_SPIDER] ⏩ Resuming ...`);
   }
 
   // Close the browser

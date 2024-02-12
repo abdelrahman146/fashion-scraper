@@ -6,12 +6,13 @@
   "scripts": {
     "test": "jest",
     "test:watch": "jest --watch",
-    "scrape:trendyol": "ts-node src/GCC/trendyol/main.ts",
-    "scrape:namshi": "ts-node src/GCC/namshi/main.ts",
-    "scrape:sivvi": "ts-node src/GCC/sivvi/main.ts",
-    "scrape:max": "ts-node src/GCC/max/main.ts",
-    "scrape:centerpoint": "ts-node src/GCC/centerpoint/main.ts",
-    "scrape:brandsforless": "ts-node src/GCC/brandsforless/main.ts"
+    "scrape:trendyol": "ts-node src/spiders/GCC/trendyol/main.ts",
+    "scrape:namshi": "ts-node src/spiders/GCC/namshi/main.ts",
+    "scrape:sivvi": "ts-node src/spiders/GCC/sivvi/main.ts",
+    "scrape:max": "ts-node src/spiders/GCC/max/main.ts",
+    "scrape:centerpoint": "ts-node src/spiders/GCC/centerpoint/main.ts",
+    "scrape:brandsforless": "ts-node src/spiders/GCC/brandsforless/main.ts",
+    "edit:main": "ts-node src/editors/main.ts"
   },
   "dependencies": {
     "@prisma/client": "5.9.1",

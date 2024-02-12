@@ -4,13 +4,12 @@ import stealthPlugin from "puppeteer-extra-plugin-stealth";
 import { PrismaClient } from "@prisma/client";
 
 import { Browser, Page } from "puppeteer";
-import { categorize } from "../../core/categorize";
-import { REGION } from "../../core/types";
-import { findMaterial } from "../../core/findMaterial";
-import { log, logr } from "../../core/log";
-import { getRandomInteger } from "../../core/number.utils";
+import { categorize } from "../../../core/categorize";
+import { REGION } from "../../../core/types";
+import { findMaterial } from "../../../core/findMaterial";
+import { log, logr } from "../../../core/log";
+import { getRandomInteger } from "../../../core/number.utils";
 import moment from "moment";
-import { findColor } from "../../core/findColor";
 
 puppeteer.use(stealthPlugin());
 const prisma = new PrismaClient();
@@ -23,7 +22,6 @@ type Data = {
     price: string | null;
     priceBeforeDiscount: string | null;
   };
-  rrp: string | null;
   url: string | null;
   hasPromotion: boolean | null;
 };
@@ -32,10 +30,11 @@ type SpiderOptions = {
   defaultGender: string;
   region?: REGION;
   url: string;
-  defaultColor?: string;
+  defaultColor: string;
   source?: string;
   defaultCurrency?: string;
   defaultCategory?: string;
+  defaultMaterial?: string;
 };
 
 async function navigateWithRetry(page: Page, url: string, maxRetries = 3) {
@@ -46,12 +45,12 @@ async function navigateWithRetry(page: Page, url: string, maxRetries = 3) {
       // If navigation succeeds, return
       return true;
     } catch (error) {
-      log(`🕷️  [BRANDSFORLESS_SPIDER] ❗ Navigation attempt ${retries + 1} failed with timeout error. Retrying...`);
+      log(`🕷️  [SIVVI_SPIDER] ❗ Navigation attempt ${retries + 1} failed with timeout error. Retrying...`);
       retries++;
       await new Promise((r) => setTimeout(r, getRandomInteger(15000, 30000)));
     }
   }
-  logr(`🕷️  [BRANDSFORLESS_SPIDER] ⛔ Navigation failed after ${maxRetries} attempts. for ${url}`);
+  logr(`🕷️  [SIVVI_SPIDER] ⛔ Navigation failed after ${maxRetries} attempts. for ${url}`);
   return false;
 }
 
@@ -63,12 +62,12 @@ async function launchWithRetry(url: string, maxRetries = 3) {
       // If navigation succeeds, return
       return browser;
     } catch (error) {
-      log(`🕷️  [BRANDSFORLESS_SPIDER] ❗ Launch attempt ${retries + 1} failed with protocol timeout error. Retrying...`);
+      log(`🕷️  [SIVVI_SPIDER] ❗ Launch attempt ${retries + 1} failed with protocol timeout error. Retrying...`);
       retries++;
       await new Promise((r) => setTimeout(r, getRandomInteger(15000, 30000)));
     }
   }
-  logr(`🕷️  [BRANDSFORLESS_SPIDER] ⛔ Launch failed after ${maxRetries} attempts. for ${url}`);
+  logr(`🕷️  [SIVVI_SPIDER] ⛔ Launch failed after ${maxRetries} attempts. for ${url}`);
   return null;
 }
 
@@ -76,25 +75,26 @@ export async function spider({
   defaultCurrency = "AED",
   defaultGender,
   region = REGION.GCC,
-  source = "brandsforless",
+  source = "sivvi",
   defaultCategory,
+  defaultMaterial,
   defaultColor,
   url,
 }: SpiderOptions): Promise<number> {
-  const timeoutBuffer = [15_000, 30_000];
+  const timeoutBuffer = [20_000, 40_000];
   const browser: Browser | null = await launchWithRetry(url);
   if (!browser) return -3;
   const page: Page = await browser.newPage();
 
   let total = 0;
-  let success = await navigateWithRetry(page, url);
+  let success = await navigateWithRetry(page, url + "&page=" + 1);
   if (!success) return total;
 
   async function getLastPage(): Promise<number> {
     return page.evaluate(() => {
-      const p = document.querySelectorAll("ul.pagination > li");
-      if (p && p.length > 0) {
-        return Number(p[p.length - 2].textContent?.replace(/\D/gm, "").trim());
+      const p = document.querySelectorAll('button[class*="Pagination_paginationItem__"]');
+      if (p.length > 0) {
+        return Number(p[p.length - 1].textContent);
       } else {
         return 1;
       }
@@ -116,51 +116,47 @@ export async function spider({
        * Extractors START
        */
       function extractId(product: Element): string | null {
-        let url = product.querySelector("a")?.getAttribute("href");
+        let url = product.querySelector('a[class*="ProductBox_productBox__"]')?.getAttribute("href");
         if (url) {
           url = url.trim().replace(/\/$/, "");
           const parts = url.split("/");
-          return parts[parts.length - 3] + "/" + parts[parts.length - 2];
-          // return parts[parts.length - 2];
+          // return parts[parts.length - 3] + "/" + parts[parts.length - 2];
+          return parts[parts.length - 2];
         }
         return null;
       }
 
       function extractUrl(product: Element): string | null {
-        const anchor = product.querySelector("a");
+        const anchor = product.querySelector('a[class*="ProductBox_productBox__"]');
         return anchor ? anchor.getAttribute("href") : null;
       }
 
       function extractTitle(product: Element): string | null {
-        return product.querySelector(".product_title")?.textContent?.trim() || null;
+        return product.querySelector('div[class*="ProductBox_productTitle__"]')?.textContent?.trim() || null;
       }
 
       function extractBrand(product: Element): string | null {
-        return product.querySelector(".pdp_brand")?.textContent?.trim() || null;
+        return product.querySelector('div[class*="ProductBox_brand__"]')?.textContent?.trim() || null;
       }
 
       function extractPrice(product: Element): { priceBeforeDiscount: string | null; price: string | null } {
-        let sellingPrice = product.querySelector(".price")?.textContent?.trim().replace(/\D/g, "");
-        let priceBeforeDiscount = product.querySelector(".old_price")?.textContent?.trim().replace(/\D/g, "");
+        let sellingPrice = product.querySelector('span[class*="ProductPrice_sellingPrice__"] > strong')?.textContent?.trim();
+        let priceBeforeDiscount = product.querySelector('div[class*="ProductPrice_preReductionPrice__"]')?.textContent?.trim().replace(/\D/g, "");
 
-        return { price: sellingPrice || null, priceBeforeDiscount: priceBeforeDiscount || null };
+        return { price: sellingPrice || null, priceBeforeDiscount: (Number(priceBeforeDiscount) / 100).toFixed(2) || null };
       }
 
       function extractHasPromotion(product: Element): boolean | null {
-        let priceBeforeDiscount = product.querySelector(".was-price")?.textContent?.trim().replace(/\D/g, "");
+        let priceBeforeDiscount = product.querySelector('div[class*="ProductPrice_preReductionPrice__"]')?.textContent?.trim().replace(/\D/g, "");
         if (priceBeforeDiscount) {
           return true;
         }
         return false;
       }
-
-      function extractRRP(product: Element): string | null {
-        return product.querySelector(".rrp_value")?.textContent?.replace(/\D/gm, "") || null;
-      }
       /**
        * Extractors END
        */
-      const products = Array.from(document.querySelectorAll(".product-item"));
+      const products = Array.from(document.querySelectorAll('div[class*="ProductBox_container__"]'));
       return products.map((product: Element) => {
         try {
           const id = extractId(product);
@@ -169,14 +165,12 @@ export async function spider({
           const price = extractPrice(product);
           const url = extractUrl(product) || "";
           const hasPromotion = extractHasPromotion(product);
-          const rrp = extractRRP(product);
-          return { id, title, brand, price, url, hasPromotion, rrp };
+          return { id, title, brand, price, url, hasPromotion };
         } catch {
           return {
             id: null,
             title: null,
             brand: null,
-            rrp: null,
             price: { price: null, priceBeforeDiscount: null },
             url: null,
             hasPromotion: null,
@@ -187,7 +181,7 @@ export async function spider({
   }
 
   async function unload(currentPage: number, data: Data[]) {
-    let i = 42 * (currentPage - 1);
+    let i = 20 * (currentPage - 1);
     for (const item of data) {
       const order = ++i;
       try {
@@ -217,9 +211,8 @@ export async function spider({
           priceBeforeDiscount: Number(item.price.priceBeforeDiscount),
           pageOrder: order,
           currency: defaultCurrency,
-          color: findColor(item.title),
-          material: findMaterial(item.title),
-          otherAttributes: JSON.stringify({ rrp: Number(item.rrp) }),
+          color: defaultColor,
+          material: defaultMaterial || findMaterial(item.title),
         };
         if (product) {
           await prisma.product.update({
@@ -252,16 +245,16 @@ export async function spider({
     "📊 Total Pages: ",
     lastPage,
     "Estimated Total Products",
-    lastPage * 42,
+    lastPage * 20,
     "estimated finish  ",
     moment.duration(32000 * lastPage).humanize(true)
   );
   for (let i = 1; i <= lastPage; i++) {
-    const url_paginated = i > 1 ? url + "?page=" + i : url;
+    const url_paginated = url + "&page=" + i;
     const alreadyScraped = await checkIfScraped(url_paginated);
     if (alreadyScraped) continue;
     if (i > 1) {
-      const success = await navigateWithRetry(page, url + "?page=" + i);
+      const success = await navigateWithRetry(page, url + "&page=" + i);
       if (!success) continue;
     }
 
@@ -273,14 +266,14 @@ export async function spider({
     // Showing Percentage of completion
     const percentage = Math.round((i / lastPage) * 100);
     if (percentage % 10 === 0 || percentage === 99) {
-      log(`🕷️  [BRANDSFORLESS_SPIDER] 🟩 Completed ${percentage}% of total products`);
+      log(`🕷️  [SIVVI_SPIDER] 🟩 Completed ${percentage}% of total products`);
     }
 
     // Wait for new content to load, adjust the wait time according to your needs
     const timeout = getRandomInteger(timeoutBuffer[0], timeoutBuffer[1]);
-    log(`🕷️  [BRANDSFORLESS_SPIDER] ⏳ Pausing for ${moment.duration(timeout).humanize()} ...`);
+    log(`🕷️  [SIVVI_SPIDER] ⏳ Pausing for ${moment.duration(timeout).humanize()} ...`);
     await new Promise((r) => setTimeout(r, timeout));
-    log(`🕷️  [BRANDSFORLESS_SPIDER] ⏩ Resuming ...`);
+    log(`🕷️  [SIVVI_SPIDER] ⏩ Resuming ...`);
   }
 
   // Close the browser

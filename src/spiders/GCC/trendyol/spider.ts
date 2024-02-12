@@ -4,13 +4,13 @@ import stealthPlugin from "puppeteer-extra-plugin-stealth";
 import { PrismaClient } from "@prisma/client";
 
 import { Browser, Page } from "puppeteer";
-import { categorize } from "../../core/categorize";
-import { findGender } from "../../core/findGender";
-import { REGION } from "../../core/types";
-import { findColor } from "../../core/findColor";
-import { findMaterial } from "../../core/findMaterial";
-import { log } from "../../core/log";
-import { getRandomInteger } from "../../core/number.utils";
+import { categorize } from "../../../core/categorize";
+import { findGender } from "../../../core/findGender";
+import { REGION } from "../../../core/types";
+import { findColor } from "../../../core/findColor";
+import { findMaterial } from "../../../core/findMaterial";
+import { log } from "../../../core/log";
+import { getRandomInteger } from "../../../core/number.utils";
 import moment from "moment";
 
 puppeteer.use(stealthPlugin());
