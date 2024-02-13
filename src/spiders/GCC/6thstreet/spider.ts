@@ -106,74 +106,71 @@ export async function spider({
     });
   }
 
-  async function extract(): Promise<Element[]> {
+  async function extract(): Promise<Data[]> {
     return page.evaluate((totalScraped) => {
+      /**
+       * Extractors START
+       */
+      function extractId(product: Element): string | null {
+        let id = product.id;
+        return id;
+      }
+
+      function extractUrl(product: Element): string | null {
+        const anchor = product.querySelector("a");
+        return anchor ? anchor.getAttribute("href") : null;
+      }
+
+      function extractTitle(product: Element): string | null {
+        return product.querySelector("p.ProductItem-Title")?.textContent?.trim() || null;
+      }
+
+      function extractBrand(product: Element): string | null {
+        return product.querySelector("h2.ProductItem-Brand")?.textContent?.trim() || null;
+      }
+
+      function extractPrice(product: Element): { priceBeforeDiscount: string | null; price: string | null } {
+        let sellingPrice = product.querySelector("span.Price-Special")?.textContent?.trim().replace(/\D/g, "");
+        let priceBeforeDiscount = product.querySelector(".Price-Del")?.textContent?.trim().replace(/\D/g, "");
+        if (!sellingPrice) {
+          sellingPrice = product.querySelector(".Price")?.textContent?.trim().replace(/\D/g, "");
+        }
+        return { price: sellingPrice || null, priceBeforeDiscount: priceBeforeDiscount || null };
+      }
+
+      function extractHasPromotion(product: Element): boolean | null {
+        let priceBeforeDiscount = product.querySelector(".PLPSummary-Exclusive")?.textContent?.trim().replace(/\D/g, "");
+        if (priceBeforeDiscount) {
+          return true;
+        }
+        return false;
+      }
+      /**
+       * Extractors END
+       */
       const products = Array.from(document.querySelectorAll("li.ProductItem"));
-      return products.slice(totalScraped);
+
+      return products.slice(totalScraped).map((product: Element) => {
+        try {
+          const id = extractId(product);
+          const title = extractTitle(product);
+          const brand = extractBrand(product);
+          const price = extractPrice(product);
+          const url = extractUrl(product) || "";
+          const hasPromotion = extractHasPromotion(product);
+          return { id, title, brand, price, url, hasPromotion };
+        } catch {
+          return {
+            id: null,
+            title: null,
+            brand: null,
+            price: { price: null, priceBeforeDiscount: null },
+            url: null,
+            hasPromotion: null,
+          };
+        }
+      });
     }, totalScraped);
-  }
-
-  function transform(products: Element[]): Data[] {
-    /**
-     * Extractors START
-     */
-    function extractId(product: Element): string | null {
-      let id = product.id;
-      return id;
-    }
-
-    function extractUrl(product: Element): string | null {
-      const anchor = product.querySelector("a");
-      return anchor ? anchor.getAttribute("href") : null;
-    }
-
-    function extractTitle(product: Element): string | null {
-      return product.querySelector("p.ProductItem-Title")?.textContent?.trim() || null;
-    }
-
-    function extractBrand(product: Element): string | null {
-      return product.querySelector("h2.ProductItem-Brand")?.textContent?.trim() || null;
-    }
-
-    function extractPrice(product: Element): { priceBeforeDiscount: string | null; price: string | null } {
-      let sellingPrice = product.querySelector("span.Price-Special")?.textContent?.trim().replace(/\D/g, "");
-      let priceBeforeDiscount = product.querySelector(".Price-Del")?.textContent?.trim().replace(/\D/g, "");
-      if (!sellingPrice) {
-        sellingPrice = product.querySelector(".Price")?.textContent?.trim().replace(/\D/g, "");
-      }
-      return { price: sellingPrice || null, priceBeforeDiscount: priceBeforeDiscount || null };
-    }
-
-    function extractHasPromotion(product: Element): boolean | null {
-      let priceBeforeDiscount = product.querySelector(".Price-Del")?.textContent?.trim().replace(/\D/g, "");
-      if (priceBeforeDiscount) {
-        return true;
-      }
-      return false;
-    }
-    /**
-     * Extractors END
-     */
-    return products.map((product: Element) => {
-      try {
-        const id = extractId(product);
-        const title = extractTitle(product);
-        const brand = extractBrand(product);
-        const price = extractPrice(product);
-        const url = extractUrl(product) || "";
-        const hasPromotion = extractHasPromotion(product);
-        return { id, title, brand, price, url, hasPromotion };
-      } catch {
-        return {
-          id: null,
-          title: null,
-          brand: null,
-          price: { price: null, priceBeforeDiscount: null },
-          url: null,
-          hasPromotion: null,
-        };
-      }
-    });
   }
 
   async function load(totalScraped: number, data: Data[]) {
@@ -228,15 +225,35 @@ export async function spider({
   }
 
   function calculateTimeEstimate(totalProducts: number): number {
-    const loadTime = [...Array(totalProducts + 1).keys()].reduce((tot, curr) => {
+    const pages = Math.floor(totalProducts / 30);
+    const loadTime = [...Array(pages + 1).keys()].reduce((tot, curr) => {
       const timeout = getRandomInteger(1000, 5000) * curr * 0.5;
       return tot + timeout;
     }, 0);
-    const pauseTime = [...Array(totalProducts + 1).keys()].reduce((tot, curr) => {
+    const pauseTime = [...Array(pages + 1).keys()].reduce((tot, curr) => {
       const timeout = getRandomInteger(1000, 4000);
       return tot + timeout;
     }, 0);
     return loadTime + pauseTime;
+  }
+
+  async function loadMore(): Promise<boolean> {
+    return page.evaluate(() => {
+      const loadButton = document.querySelector(".LoadMore > button") as HTMLButtonElement;
+      if (loadButton && !loadButton.disabled) {
+        loadButton.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+        loadButton.click();
+        return true;
+      } else {
+        return false;
+      }
+    });
+  }
+
+  async function scroll() {
+    return page.evaluate(() => {
+      window.scrollBy({ top: -500, behavior: "smooth" });
+    });
   }
 
   const browser: Browser | null = await launchWithRetry(url);
@@ -259,31 +276,25 @@ export async function spider({
     log(`🕷️  [6THSTREET_SPIDER] ⏳ Warming up for ${moment.duration(timeout).humanize()} ...`);
     await new Promise((r) => setTimeout(r, timeout));
     log(`🕷️  [6THSTREET_SPIDER] ⏩ Resuming ...`);
-
-    const loadButton = document.querySelector(".LoadMore > button") as HTMLButtonElement;
-    if (loadButton && !loadButton.disabled) {
-      loadButton.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
-      timeout = getRandomInteger(1000, 3000);
-      await new Promise((r) => setTimeout(r, timeout));
-      loadButton.click();
-      timeout = getRandomInteger(1000, 5000) * count * 0.5;
-      log(`🕷️  [6THSTREET_SPIDER] ⏳ Loading data, waiting for ${moment.duration(timeout).humanize()} ...`);
+    timeout = getRandomInteger(1000, 5000) * count * 0.5;
+    log(`🕷️  [6THSTREET_SPIDER] ⏳ Loading data, waiting for ${moment.duration(timeout).humanize()} ...`);
+    await new Promise((r) => setTimeout(r, timeout));
+    log(`🕷️  [6THSTREET_SPIDER] ⏩ Resuming ...`);
+    const data = await extract();
+    await load(totalScraped, data);
+    totalScraped += data.length;
+    log(`🕷️  [6THSTREET_SPIDER] 🟩 Scraped ${data.length}. total scraped: ${totalScraped} / ${totalProducts}`);
+    const hasMore = await loadMore();
+    if (hasMore) {
+      await new Promise((r) => setTimeout(r, 1000));
+      await scroll();
+      timeout = getRandomInteger(1000, 5000);
+      log(`🕷️  [6THSTREET_SPIDER] ⏳ Pausing for ${moment.duration(timeout).humanize()} ...`);
       await new Promise((r) => setTimeout(r, timeout));
       log(`🕷️  [6THSTREET_SPIDER] ⏩ Resuming ...`);
-      const scraped = await extract();
-      const data = transform(scraped);
-      log(`🕷️  [6THSTREET_SPIDER] 🟩 Scraped ${data.length}%. total scraped: ${totalScraped} / ${totalProducts}`);
-      await load(totalScraped, data);
     } else {
       break;
     }
-
-    timeout = getRandomInteger(1000, 5000);
-    log(`🕷️  [6THSTREET_SPIDER] ⏳ Pausing for ${moment.duration(timeout).humanize()} ...`);
-    await new Promise((r) => setTimeout(r, timeout));
-    log(`🕷️  [6THSTREET_SPIDER] ⏩ Resuming ...`);
-    const scroll = getRandomInteger(300, 700);
-    window.scrollBy({ top: -scroll, behavior: "smooth" });
   }
 
   await registerAsScraped(url);

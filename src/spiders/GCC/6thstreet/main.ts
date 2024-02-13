@@ -14,8 +14,6 @@ const pages = [
   "https://en-ae.6thstreet.com/kids/footwear.html?q=Kids+Footwear&p=0&hFR%5Bcategories.level0%5D%5B0%5D=Kids+%2F%2F%2F+Footwear&nR%5Bvisibility_catalog%5D%5B=%5D%5B0%5D%3D1&idx=enterprise_magento_english_products&dFR%5Bgender%5D%5B0%5D=Girl&dFR%5Bin_stock%5D%5B0%5D=1",
 ];
 
-const colorQuery = "dFR[colorfamily][0]=";
-
 const colors = [
   "Almond",
   "Beige",
@@ -95,7 +93,7 @@ const getCategory = (url: string) => {
       logr(`🕷️  Assigned [6THSTREET_SPIDER] for ${colored_url}`);
       const start = moment();
       const total = await spider({ url: colored_url, defaultGender: getGender(url), defaultCategory: getCategory(url), defaultColor: color });
-      if (total === -3 || total === 0) continue;
+      if (total === -3 || total === -1 || total === 0) continue;
       const finish = moment();
       const time = finish.diff(start, "milliseconds");
       logr(`🕷️  [6THSTREET_SPIDER] ✅ Succesffully scraped ` + total + " " + moment.duration(time).humanize(true));
