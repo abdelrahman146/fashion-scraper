@@ -12,6 +12,7 @@
     "scrape:max": "ts-node src/spiders/GCC/max/main.ts",
     "scrape:centerpoint": "ts-node src/spiders/GCC/centerpoint/main.ts",
     "scrape:brandsforless": "ts-node src/spiders/GCC/brandsforless/main.ts",
+    "scrape:6thstreet": "ts-node src/spiders/GCC/6thstreet/main.ts",
     "edit:main": "ts-node src/editors/main.ts"
   },
   "dependencies": {
