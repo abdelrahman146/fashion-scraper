@@ -1,5 +1,5 @@
-import { bag, bottom, footwear, formal, hat, outerwear, set, top, underwear } from "./categories";
-import { makeSingular } from "./string.utils";
+import { bag, bottom, footwear, formal, hat, outerwear, set, top, underwear } from "../utils/categories.utils";
+import { findIntersection } from "../utils/array.utils";
 
 type FindLongestArrayProps = {
   set: string[];
@@ -12,17 +12,6 @@ type FindLongestArrayProps = {
   underwear: string[];
   formalwear: string[];
 };
-
-function findIntersection(array1: string[], array2: string[]): string[] {
-  // Convert arrays to sets to take advantage of set intersection
-  const set1: Set<string> = new Set(array1);
-  const set2: Set<string> = new Set(array2);
-
-  // Use the spread operator to convert the intersection set back to an array
-  const intersection: string[] = [...new Set([...set1].filter((word) => set2.has(word)))];
-
-  return intersection;
-}
 
 function findMatchCategory(categories: FindLongestArrayProps): [string, string[]] {
   const entries = Object.entries(categories);
@@ -40,32 +29,19 @@ function findMatchCategory(categories: FindLongestArrayProps): [string, string[]
 export function categorize(text: string, defaultCategory?: string): { category: string; subCategory: string } {
   const words = text
     .trim()
-    .toLowerCase()
-    .replace(/t-shirt/gim, "tshirt")
-    .replace(/g-string/gim, "gstring")
-    .replace(/off-the-shoulder/gim, "offtheshoulder")
-    .replace(/button-down/gim, "offtheshoulder")
-    .replace(/bell-sleeve/gim, "offtheshoulder")
-    .replace(/cold-shoulder/gim, "offtheshoulder")
-    .replace(/bell-sleeve/gim, "offtheshoulder")
-    .replace(/tie-front/gim, "offtheshoulder")
-    .replace(/longs leeve/gim, "longs leeve")
+    .replace(/long sleeve/gim, "longsleeves")
     .replace(/spaghetti strap/gim, "spaghettistrap")
     .replace(/short sleeve/gim, "shortsleeve")
-    .replace(/crewneck/gim, "crewneck")
     .replace(/boat neck/gim, "boatneck")
-    .replace(/v-neck/gim, "vneck")
     .replace(/pea coat/gim, "peacoat")
     .replace(/trench coat/gim, "trenchcoat")
     .replace(/baseball cap/gim, "baseballcap")
     .replace(/bucket hat/gim, "buckethat")
     .replace(/buckethat/gim, "bucket hat")
     .replace(/bowler hat/gim, "bowlerhat")
-    .replace(/sun-hat/gim, "sunhat")
     .replace(/sun hat/gim, "sunhat")
     .replace(/cowboy hat/gim, "cowboyhat")
     .replace(/flat cap/gim, "flatcap")
-    .replace(/flat-cap/gim, "flatcap")
     .replace(/panama hat/gim, "panamahat")
     .replace(/trapper hat/gim, "trapperhat")
     .replace(/golf hat/gim, "golfhat")
@@ -75,18 +51,32 @@ export function categorize(text: string, defaultCategory?: string): { category: 
     .replace(/fisherman hat/gim, "fishermanhat")
     .replace(/pillbox hat/gim, "pillboxhat")
     .replace(/flip flop/gim, "flipflop")
-    .replace(/flip-flop/gim, "flipflop")
     .replace(/crop top/gim, "croptop")
     .replace(/crop-top/gim, "croptop")
     .replace(/wrap top/gim, "wraptop")
-    .replace(/wrap-top/gim, "wrap top")
     .replace(/wide leg/gim, "wideleg")
     .replace(/track suit/gim, "tracksuit")
     .replace(/bottom top/gim, "bottomtop")
     .replace(/bottom-top/gim, "bottomtop")
     .replace(/two-piece/gim, "twopiece")
     .replace(/two piece/gim, "twopiece")
-    .replace(/night gown/gim, "nightgown")
+    .replace(/high waist/gim, "highwaist")
+    .replace(/high waist/gim, "highwaist")
+    .replace(/low rise/gim, "lowrise")
+    .replace(/carpenter pants/gim, "carpenterpants")
+    .replace(/sailor pants/gim, "sailorpants")
+    .replace(/mary janes/gim, "maryjanes")
+    .replace(/wellyboots/gim, "welly boots")
+    .replace(/chelsea boots/gim, "chelseaboots")
+    .replace(/combat boots/gim, "combatboots")
+    .replace(/hiking boots/gim, "hikingboots")
+    .replace(/rain boots/gim, "rainboots")
+    .replace(/ankle boots/gim, "ankleboots")
+    .replace(/thigh high/gim, "thighhigh")
+    .replace(/tap shorts/gim, "tapshorts")
+    .replace(/bow tie/gim, "bowtie")
+    .replace(/hand bag/gim, "handbag")
+    .replace(/yoga pants/gim, "yogapants")
     .replace(/night-gown/gim, "nightgown")
     .replace(/body suit/gim, "bodysuit")
     .replace(/body-suit/gim, "bodysuit")
@@ -98,30 +88,12 @@ export function categorize(text: string, defaultCategory?: string): { category: 
     .replace(/capri suit/gim, "capri")
     .replace(/cropped top/gim, "croptop")
     .replace(/prayer dress/gim, "prayerdress")
-    .replace(/t-shirts/gim, "tshirt")
-    .replace(/jumpsuits/gim, "jumpsuit")
-    .replace(/skort/gim, "skirt")
-    .replace(/skorts/gim, "skirt")
-    .replace(/pyjamas/gim, "pajama")
-    .replace(/pyjama/gim, "pajama")
-    .replace(/pajamas/gim, "pajama")
-    .replace(/tshirts/gim, "tshirt")
-    .replace(/shirts/gim, "shirt")
-    .replace(/nightwear/gim, "pajama")
     .replace(/swimwear/gim, "swimsuit")
-    .replace(/capris/gim, "capri")
     .replace(/sweats\b/gim, "sweatshirt")
-    .replace(/hoody/gim, "hoodie")
-    .replace(/bralettes/gim, "bralette")
-    .replace(/playsuits/gim, "playsuit")
     .replace(/play suite/gim, "playsuit")
-    .replace(/sweat\b/gim, "sweater")
-    .replace(/sock\b/gim, "socks")
-    .replace(/onesie\b/gim, "onesies")
     .replace(/hoodies/gim, "hoodie")
     .replace(/tee\b/gim, "tshirt")
     .replace(/tees\b/gim, "tshirt")
-    .replace(/overalls\b/gim, "overall")
     .replace(/[^\w\s]/gi, " ")
     .split(" ");
 
@@ -136,9 +108,11 @@ export function categorize(text: string, defaultCategory?: string): { category: 
     bag: findIntersection(words, bag),
     hat: findIntersection(words, hat),
   });
-  const subCategoryTransformed = [...new Set(subCategory.map((sub) => makeSingular(sub, false)))].join("/");
+
+  const subCategoryTransformed = [...new Set(subCategory)].join("/");
   if (category === "uncategorized" && defaultCategory) {
     category = defaultCategory;
   }
+
   return { category, subCategory: subCategoryTransformed };
 }

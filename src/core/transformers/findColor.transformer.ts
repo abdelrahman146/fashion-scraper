@@ -155,12 +155,12 @@ function findIntersection(array1: string[], array2: string[]): string[] {
   return intersection;
 }
 
-export function findColor(text: string): string | null {
+export function findColor(text: string, fallbackColor?: string): string | null {
   const words = text
     .trim()
     .toLowerCase()
     .replace(/[^\w\s]/gi, " ")
     .split(" ");
   const int = findIntersection(words, colors);
-  return int.join("/") || null;
+  return int.join("/") || fallbackColor || null;
 }

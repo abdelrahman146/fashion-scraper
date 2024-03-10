@@ -4,11 +4,11 @@ import stealthPlugin from "puppeteer-extra-plugin-stealth";
 import { PrismaClient } from "@prisma/client";
 
 import { Browser, Page } from "puppeteer";
-import { categorize } from "../../../core/categorize";
+import { categorize } from "../../../core/transformers/findCategory.transformer";
 import { REGION } from "../../../core/types";
-import { findMaterial } from "../../../core/findMaterial";
+import { findMaterial } from "../../../core/transformers/findMaterial.transformer";
 import { log, logr } from "../../../core/log";
-import { getRandomInteger } from "../../../core/number.utils";
+import { getRandomInteger } from "../../../core/utils/number.utils";
 import moment from "moment";
 
 puppeteer.use(stealthPlugin());

@@ -83,6 +83,8 @@ const material = [
   "twill",
   "ultrasuede",
   "worsted",
+  "zibeline",
+  "chenille",
 ];
 
 function findIntersection(array1: string[], array2: string[]): string[] {
@@ -96,12 +98,12 @@ function findIntersection(array1: string[], array2: string[]): string[] {
   return intersection;
 }
 
-export function findMaterial(text: string): string | null {
+export function findMaterial(text: string, fallbackMaterial?: string): string | null {
   const words = text
     .trim()
     .toLowerCase()
     .replace(/[^\w\s]/gi, " ")
     .split(" ");
   const int = findIntersection(words, material);
-  return int.join("/") || null;
+  return int.join("/") || fallbackMaterial || null;
 }

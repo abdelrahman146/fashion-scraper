@@ -1,5 +1,5 @@
 import { log, logr } from "../../../core/log";
-import { getRandomInteger } from "../../../core/number.utils";
+import { getRandomInteger } from "../../../core/utils/number.utils";
 import { spider } from "./spider";
 import moment from "moment";
 

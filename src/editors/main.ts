@@ -1,7 +1,7 @@
 import { PrismaClient } from "@prisma/client";
-import { categorize } from "../core/categorize";
-import { findColor } from "../core/findColor";
-import { findMaterial } from "../core/findMaterial";
+import { categorize } from "../core/transformers/findCategory.transformer";
+import { findColor } from "../core/transformers/findColor.transformer";
+import { findMaterial } from "../core/transformers/findMaterial.transformer";
 import { log } from "../core/log";
 
 const prisma = new PrismaClient();

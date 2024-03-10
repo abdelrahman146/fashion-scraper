@@ -1,4 +1,4 @@
-import { categorize } from "./categorize"; // Replace with your actual file name
+import { categorize } from "./findCategory.transformer"; // Replace with your actual file name
 
 describe("categorize function", () => {
   test("should categorize empty text as 'uncategorized/uncategorized'", () => {
