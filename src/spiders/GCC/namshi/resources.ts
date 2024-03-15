@@ -1,0 +1,30 @@
+export const pages = [
+  "https://www.namshi.com/uae-en/men-clothing/",
+  "https://www.namshi.com/uae-en/women-clothing/",
+  "https://www.namshi.com/uae-en/kids-clothing/boys/",
+  "https://www.namshi.com/uae-en/kids-clothing/girls/",
+  "https://www.namshi.com/uae-en/kids-shoes/girls/",
+  "https://www.namshi.com/uae-en/kids-shoes/boys/",
+  "https://www.namshi.com/uae-en/women-shoes/fashion-footwear-accessories/",
+  "https://www.namshi.com/uae-en/men/fashion-footwear/",
+  "https://www.namshi.com/uae-en/women-bags/fashion-bags/",
+];
+
+export const colors = [
+  "blue",
+  "green",
+  "gold",
+  "silver",
+  "multicolour",
+  "grey",
+  "purple",
+  "red",
+  "orange",
+  "yellow",
+  "clear",
+  "black",
+  "white",
+  "beige",
+  "pink",
+  "brown",
+];

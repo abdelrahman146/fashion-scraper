@@ -1,75 +1,64 @@
-import { Page } from "puppeteer";
+import { GoToOptions, HTTPResponse, Page } from "puppeteer";
 import { Spider } from "../../../core/Spider";
 import { pages } from "./resources";
 import tasks from "./tasks";
+import { promiseWithRetry } from "../../../core/utils/common.utils";
 
 export class Spider_BrandsForLess extends Spider {
   totalScraped = 0;
-  reloadTries = 0;
   constructor() {
     super("brandsforless");
   }
-  async navigateWithRetry(page: Page, url: string, maxRetries = 3): Promise<boolean> {
-    let retries = 0;
-    while (retries < maxRetries) {
-      try {
-        await page.goto(url, { waitUntil: "domcontentloaded" });
-        await page.waitForSelector("ul.pagination > li");
-        return true;
-      } catch (error) {
-        this.log(`❗ Navigation attempt ${retries + 1} failed with timeout error. Retrying...`);
-        retries++;
-        await this.break(15000, 30000);
+
+  /**
+   * Override the default navigate method to handle random Arabic pages
+   */
+  async navigate(page: Page, url: string, options?: GoToOptions): Promise<HTTPResponse | -1 | null> {
+    return promiseWithRetry(
+      async () => {
+        const res = await page.goto(url, { waitUntil: "networkidle0", ...options });
+        const isArabic = await tasks.checkIfArabic(page);
+        if (isArabic) {
+          await this.break(5000, 10000, "❌ ${url} is in Arabic. reloading after");
+          return this.navigate(page, url, options);
+        } else {
+          return res;
+        }
+      },
+      {
+        failCallback: (_error, retries) => {
+          this.log(`❗ Navigation tp ${url} failed. Attempt: ${retries}. Retrying...`);
+        },
       }
-    }
-    this.logr(`⛔ Navigation failed after ${maxRetries} attempts. for ${url}`);
-    return false;
+    );
   }
 
   async extract(url: string): Promise<number> {
     this.totalScraped = 0;
     const scraped = await this.checkIfScraped(url);
     if (scraped) return 0;
-    const browser = await this.launchWithRetry(url);
-    if (!browser) return -1;
-    const page = await browser.newPage();
-    const success = this.navigateWithRetry(page, url);
-    if (!success) return -2;
-    await this.break(15000, 30000, "Warming up");
-    const isArabic = await tasks.checkIfArabic(page);
-    if (isArabic) {
-      this.log(`❌ ${url} is in Arabic. Try ${this.reloadTries + 1} reloading...`);
-      this.reloadTries++;
-      if (this.reloadTries > 3) {
-        this.logr(`⛔ ${url} is in Arabic. Retried ${this.reloadTries} times. Skipping...`);
-        return -400;
-      } else {
-        this.extract(url);
-      }
-    } else {
-      this.reloadTries = 0;
+    const result = await this.initializeBrowser();
+    if (result === -1) return -1;
+    const { page, browser } = result;
+    const success = await this.navigate(page, url, { waitUntil: "domcontentloaded" });
+    if (!success || success === -1) {
+      await browser.close();
+      return -2;
     }
+    await this.break(15000, 30000, "Warming up for");
     const lastPage = await tasks.getLastPage(page);
-    if (lastPage == -1) {
+    if (lastPage === -1) {
       this.logr(`⛔ Failed to get last page for ${url}`);
-      this.reloadTries++;
-      if (this.reloadTries > 3) {
-        this.logr(`⛔ ${url} unable to evaluate. Retried ${this.reloadTries} times. Skipping...`);
-        return -400;
-      } else {
-        this.extract(url);
-      }
-    } else {
-      this.reloadTries = 0;
+      return -400;
     }
     for (let i = 1; i <= lastPage; i++) {
       const url_paginated = i > 1 ? url + "?page=" + i : url;
       if (i > 1) {
-        const success = await this.navigateWithRetry(page, url_paginated);
-        if (!success) continue;
-        await this.break(15000, 30000, "Loading data");
+        const success = await this.navigate(page, url_paginated);
+        if (!success || success === -1) continue;
+        await this.break(15000, 30000, "Loading data, waiting for");
       }
-      const data = await tasks.extractProducts(page, this.totalScraped);
+      const data = await tasks.extractProducts(page);
       if (data === -1) continue;
       const products = this.transform({
         data,
@@ -88,6 +77,7 @@ export class Spider_BrandsForLess extends Spider {
       this.log(`🟩 Scraped ${data.length}. total scraped: ${this.totalScraped}`);
     }
     this.registerAsScraped(url);
+    await browser.close();
     return 1;
   }
 

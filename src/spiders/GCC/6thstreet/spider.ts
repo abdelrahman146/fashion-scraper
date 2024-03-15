@@ -12,11 +12,11 @@ export class Spider_6thStreet extends Spider {
     this.totalScraped = 0;
     const scraped = await this.checkIfScraped(url);
     if (scraped) return 0;
-    const browser = await this.launchWithRetry(url);
-    if (!browser) return -1;
-    const page = await browser.newPage();
-    const success = this.navigateWithRetry(page, url);
-    if (!success) {
+    const result = await this.initializeBrowser();
+    if (result === -1) return -1;
+    const { page, browser } = result;
+    const success = await this.navigate(page, url);
+    if (!success || success === -1) {
       await browser.close();
       return -2;
     }
@@ -24,6 +24,10 @@ export class Spider_6thStreet extends Spider {
     let tries = 1;
     while (true) {
       const data = await tasks.extractProducts(page, this.totalScraped);
+      if (data === -1) {
+        this.log(`❌ Failed to extract more data from ${url}`);
+        return -3;
+      }
       const products = this.transform({
         data,
         globalAttributes: {
@@ -45,6 +49,10 @@ export class Spider_6thStreet extends Spider {
         this.log(`🟩 Scraped ${data.length}. total scraped: ${this.totalScraped}`);
       }
       const hasMore = await tasks.loadMore(page);
+      if (hasMore === -1) {
+        this.log(`❌ Failed to load more from ${url}`);
+        return -3;
+      }
       if (!hasMore || tries > 3) break;
       await tasks.scroll(page);
       await this.break(3000, 15000, "Loading data");
@@ -67,6 +75,10 @@ export class Spider_6thStreet extends Spider {
         }
         if (status === -2) {
           this.log(`❌ Failed to navigate to ${colored_url}`);
+          continue;
+        }
+        if (status === -3) {
+          this.log(`❌ Failed to extract all data from ${colored_url}`);
           continue;
         }
         if (status === 0) {

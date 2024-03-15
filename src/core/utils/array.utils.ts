@@ -10,7 +10,6 @@ export function findIntersection(array1: string[], array2: string[]): string[] {
     for (let element2 of set2) {
       if (like(element, element2)) {
         intersection.push(element2);
-        break;
       }
     }
   }

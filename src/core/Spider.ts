@@ -1,5 +1,5 @@
 // Path: src/core/Spider.ts
-import { Page } from "puppeteer";
+import { GoToOptions, Page, PuppeteerLaunchOptions } from "puppeteer";
 import { log, logr } from "./log";
 import { getRandomInteger } from "./utils/number.utils";
 import moment from "moment";
@@ -13,6 +13,7 @@ import { categorize } from "./transformers/findCategory.transformer";
 import { findColor } from "./transformers/findColor.transformer";
 import { findMaterial } from "./transformers/findMaterial.transformer";
 import { findGender } from "./transformers/findGender.transformer";
+import { promiseWithRetry } from "./utils/common.utils";
 
 export type Data = {
   pid: string;
@@ -82,9 +83,9 @@ export abstract class Spider {
     this.logr(` ✅ Succesffully scraped ` + total + " " + moment.duration(time).humanize(true));
   }
 
-  async break(fromMs: number, toMs: number, message = "Taking a break") {
+  async break(fromMs: number, toMs: number, message = "Taking a break for") {
     const timeout = getRandomInteger(fromMs, toMs);
-    this.log(` ⏳ ${message} for ${moment.duration(timeout).humanize()} ...`);
+    this.log(` ⏳ ${message} ${moment.duration(timeout).humanize()} ...`);
     await new Promise((r) => setTimeout(r, timeout));
     this.log(` ⏩ Resuming ...`);
   }
@@ -159,50 +160,31 @@ export abstract class Spider {
     }
   }
 
-  /**
-   * Navigates to a given URL with retry mechanism.
-   * @param page - The Puppeteer page object.
-   * @param url - The URL to navigate to.
-   * @param maxRetries - The maximum number of retries (default: 3).
-   * @returns A boolean indicating whether the navigation was successful.
-   */
-  async navigateWithRetry(page: Page, url: string, maxRetries = 3) {
-    let retries = 0;
-    while (retries < maxRetries) {
-      try {
-        await page.goto(url, { waitUntil: "networkidle0" });
-        // If navigation succeeds, return
-        return true;
-      } catch (error) {
-        this.log(`❗ Navigation attempt ${retries + 1} failed with timeout error. Retrying...`);
-        retries++;
-        await new Promise((r) => setTimeout(r, getRandomInteger(15000, 30000)));
+  async navigate(page: Page, url: string, options: GoToOptions = {}) {
+    return promiseWithRetry(
+      async () => {
+        return await page.goto(url, { waitUntil: "networkidle0", ...options });
+      },
+      {
+        failCallback: (_error, retries) => {
+          this.log(`❗ Navigation tp ${url} failed. Attempt: ${retries}. Retrying...`);
+        },
       }
-    }
-    this.logr(`⛔ Navigation failed after ${maxRetries} attempts. for ${url}`);
-    return false;
+    );
   }
 
-  /**
-   * Launches a Puppeteer browser instance with retry mechanism.
-   * @param url - The URL to navigate to.
-   * @param maxRetries - The maximum number of retry attempts (default: 3).
-   * @returns A Promise that resolves to the Puppeteer browser instance if successful, or null if failed after maxRetries attempts.
-   */
-  async launchWithRetry(url: string, maxRetries = 3) {
-    let retries = 0;
-    while (retries < maxRetries) {
-      try {
-        const browser = await this.puppeteer.launch({ headless: "new" });
-        // If navigation succeeds, return
-        return browser;
-      } catch (error) {
-        this.log(`❗ Launch attempt ${retries + 1} failed with protocol timeout error. Retrying...`);
-        retries++;
-        await new Promise((r) => setTimeout(r, getRandomInteger(15000, 30000)));
+  async initializeBrowser(options: PuppeteerLaunchOptions = {}) {
+    return promiseWithRetry(
+      async () => {
+        const browser = await this.puppeteer.launch({ headless: "new", ...options });
+        const page = await browser.newPage();
+        return { page, browser };
+      },
+      {
+        failCallback: (_error, retries) => {
+          this.log(`❗ Failed to launch browser. Attempt: ${retries}. Retrying...`);
+        },
       }
-    }
-    this.logr(`⛔ Launch failed after ${maxRetries} attempts. for ${url}`);
-    return null;
+    );
   }
 }
