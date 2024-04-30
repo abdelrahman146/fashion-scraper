@@ -174,6 +174,8 @@ export const outerwear = [
   "winterjacket",
 ];
 
+export const jumpsuit = ["jumpsuit", "playsuit", "romper", "dungaree", "overall", "onesie"];
+
 export const underwear = [
   "boxer",
   "underpants",

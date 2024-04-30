@@ -9,7 +9,7 @@ async function extractProducts(page: Page): Promise<Data[] | -1> {
        * Extractors START
        */
       function extractId(product: Element): string | undefined {
-        let id = product.getAttribute("data-id") || undefined;
+        let id = product.id;
         return id;
       }
 
@@ -24,24 +24,29 @@ async function extractProducts(page: Page): Promise<Data[] | -1> {
       }
 
       function extractTitle(product: Element): string | undefined {
-        return product.querySelector("a.title")?.textContent?.trim();
+        return product.querySelector("a")?.getAttribute("aria-label")?.trim();
       }
 
       function extractBrand(product: Element): string | undefined {
-        return product.querySelector("span.title")?.textContent?.trim();
+        return "Max";
       }
 
       function extractPrice(product: Element): { priceBeforeDiscount?: number; currency: string; sellingPrice: number } {
-        let sellingPrice = product.querySelector(".is-price")?.textContent?.trim().replace(/\D/g, "");
-        let priceBeforeDiscount = product.querySelector(".was-price")?.textContent?.trim().replace(/\D/g, "");
-        let currency = product.querySelector('span[itemprop="priceCurrency"]')?.getAttribute("content")?.toUpperCase() || "AED";
-
-        return { sellingPrice: Number(sellingPrice), currency, priceBeforeDiscount: Number(priceBeforeDiscount) };
+        let price = product.children
+          ? Array.from(product.children)[1]
+              //@ts-ignore
+              .innerText?.split("\n")
+              .filter((val: any) => Number(val))
+          : null;
+        if (price) {
+          return { sellingPrice: Number(price[0]), currency: "AED", priceBeforeDiscount: Number(price[1]) };
+        }
+        return { sellingPrice: NaN, currency: "AED", priceBeforeDiscount: NaN };
       }
 
       function extractHasPromotion(product: Element): boolean | undefined {
-        let priceBeforeDiscount = product.querySelector(".was-price")?.textContent?.trim().replace(/\D/g, "");
-        if (priceBeforeDiscount) {
+        let sale = product.querySelector(".red-sale");
+        if (sale) {
           return true;
         }
         return false;
@@ -50,7 +55,7 @@ async function extractProducts(page: Page): Promise<Data[] | -1> {
        * Extractors END
        */
 
-      const products = Array.from(document.querySelectorAll("li.ProductItem"));
+      const products = Array.from(document.querySelectorAll(".product"));
 
       return products.reduce((acc: Data[], product: Element) => {
         try {
@@ -79,9 +84,9 @@ async function extractProducts(page: Page): Promise<Data[] | -1> {
 
 async function getLastPage(page: Page): Promise<number> {
   return page.evaluate(() => {
-    const p = document.querySelector(".lms-pagination > ul")?.children as HTMLDivElement[] | undefined;
-    if (p && p.length > 0) {
-      return Number(p[p.length - 2].innerText);
+    const totalArr = document.querySelector("#category-loadmore-layout")?.textContent?.split(" products out of ");
+    if (totalArr && totalArr.length > 0) {
+      return Math.floor(Number(totalArr[1].replace(/\D/gm, "")) / 48);
     } else {
       return 1;
     }
@@ -96,4 +101,8 @@ const getGender = (url: string) => {
   return "unisex";
 };
 
-export default { extractProducts, getLastPage, getGender };
+const getCategory = (url: string) => {
+  if (url.includes("shoes")) return "footwear";
+};
+
+export default { extractProducts, getLastPage, getGender, getCategory };

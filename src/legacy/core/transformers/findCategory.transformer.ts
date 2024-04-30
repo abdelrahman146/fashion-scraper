@@ -97,6 +97,16 @@ export function categorize(text: string, defaultCategory?: string): { category: 
     .replace(/[^\w\s]/gi, " ")
     .split(" ");
 
+  if (words.includes("shirt") || words.includes("shirts")) {
+    return { category: "top", subCategory: "shirt" };
+  }
+  if (words.includes("tshirt") || words.includes("t-shirt")) {
+    return { category: "top", subCategory: "tshirt" };
+  }
+  if (words.includes("short") || words.includes("shorts")) {
+    return { category: "bottom", subCategory: "short" };
+  }
+
   let [category, subCategory] = findMatchCategory({
     set: findIntersection(words, set),
     footwear: findIntersection(words, footwear),
@@ -112,6 +122,10 @@ export function categorize(text: string, defaultCategory?: string): { category: 
   const subCategoryTransformed = [...new Set(subCategory)].join("/");
   if (category === "uncategorized" && defaultCategory) {
     category = defaultCategory;
+  }
+
+  if (words.includes("set")) {
+    category = "set";
   }
 
   return { category, subCategory: subCategoryTransformed };

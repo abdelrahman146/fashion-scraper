@@ -25,7 +25,6 @@ export class Spider_6thStreet extends Spider {
     while (true) {
       const data = await tasks.extractProducts(page, this.totalScraped);
       if (data === -1) {
-        this.log(`❌ Failed to extract more data from ${url}`);
         return -3;
       }
       const products = this.transform({

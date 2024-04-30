@@ -16,10 +16,11 @@ export class Spider_BrandsForLess extends Spider {
   async navigate(page: Page, url: string, options?: GoToOptions): Promise<HTTPResponse | -1 | null> {
     return promiseWithRetry(
       async () => {
-        const res = await page.goto(url, { waitUntil: "networkidle0", ...options });
+        const res = await page.goto(url, { waitUntil: "domcontentloaded", ...options });
+        await page.waitForSelector("h1.product_title");
         const isArabic = await tasks.checkIfArabic(page);
         if (isArabic) {
-          await this.break(5000, 10000, "❌ ${url} is in Arabic. reloading after");
+          await this.break(5000, 10000, `❌ ${url} is in Arabic. reloading after`);
           return this.navigate(page, url, options);
         } else {
           return res;
@@ -40,7 +41,7 @@ export class Spider_BrandsForLess extends Spider {
     const result = await this.initializeBrowser();
     if (result === -1) return -1;
     const { page, browser } = result;
-    const success = await this.navigate(page, url, { waitUntil: "domcontentloaded" });
+    const success = await this.navigate(page, url);
     if (!success || success === -1) {
       await browser.close();
       return -2;

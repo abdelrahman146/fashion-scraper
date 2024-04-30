@@ -59,7 +59,7 @@ export class Spider_Namshi extends Spider {
   async crawl(): Promise<void> {
     for (let url of pages) {
       for (const color of colors) {
-        const colored_url = url + "?q=color.en:" + color;
+        const colored_url = url + "?f%5Bcolour_family%5D=" + color;
         const start = this.start(colored_url);
         this.setFallbacks({ color, gender: tasks.getGender(url) });
         const status = await this.extract(colored_url);
