@@ -11,28 +11,46 @@ datasource db {
 }
 
 model Product {
-  id                  String   @id @default(cuid())
-  psId                String?
-  source              String?
-  url                 String?
-  region              String?
-  title               String?
+  id                  String            @id @default(cuid())
+  psId                String
+  source              String
+  website             String
+  img                 String
+  url                 String
+  region              String
+  title               String
   pageOrder           Int?
-  category            String?
-  subCategory         String?
+  category            String
+  subCategory         String
   brand               String?
   gender              String?
   color               String?
   material            String?
   priceBeforeDiscount Decimal?
-  sellingPrice        Decimal?
-  currency            String?  @default("AED")
+  sellingPrice        Decimal
+  currency            String?           @default("AED")
   hasPromotion        Boolean?
   ratingScore         Decimal?
   ratingCount         Int?
   otherAttributes     String?
   description         String?
+  productSnapshot     ProductSnapshot[]
+  createdAt           DateTime          @default(now())
+}
+
+model ProductSnapshot {
+  id                  String   @id @default(cuid())
+  sellingPrice        Decimal?
+  priceBeforeDiscount Decimal?
+  currency            String?  @default("AED")
+  hasPromotion        Boolean?
+  ratingScore         Decimal?
+  ratingCount         Int?
+  listingUrl          String?
+  listingOrder        Int?
   createdAt           DateTime @default(now())
+  Product             Product  @relation(fields: [productId], references: [id])
+  productId           String
 }
 
 model Scraped {

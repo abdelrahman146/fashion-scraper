@@ -193,3 +193,7 @@ dist
 ### DB ###
 # sqlite
 db.sqlite
+
+
+##ignore any csv file
+*.csv

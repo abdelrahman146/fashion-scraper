@@ -1,7 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 import fs from "fs";
-import { getRandomInteger } from "./src/core/number.utils";
+import { getRandomInteger } from "./src/legacy/core/utils/number.utils";
 
 // get 10 random rows from products table and make sure that title / category / sub category / color / material / price / price before discount are not null
 export const get5RandomProducts = async () => {
